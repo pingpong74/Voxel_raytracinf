@@ -1,0 +1,3 @@
+struct Voxel {
+    int colour;
+};
