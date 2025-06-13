@@ -1,0 +1,75 @@
+#version 460
+#extension GL_EXT_ray_tracing : require
+
+struct AABB {
+    vec3 bMin;
+    vec3 bMax;
+};
+
+layout(std430, binding = 3, set = 0) buffer Voxels { 
+    int v[]; 
+} voxels;
+
+float boundingBoxIntersection(AABB boundingBox, vec3 origin, vec3 direction) {
+    vec3 invDir = 1.0 / max(abs(direction), vec3(1e-8)) * sign(direction);
+    
+    vec3 t0 = (boundingBox.bMin - origin) * invDir;
+    vec3 t1 = (boundingBox.bMax - origin) * invDir;
+
+    vec3 tmin = min(t0, t1);
+    vec3 tmax = max(t0, t1);
+
+    float tNear = max(max(tmin.x, tmin.y), tmin.z);
+    float tFar  = min(min(tmax.x, tmax.y), tmax.z);
+
+    if (tFar >= max(tNear, 0.0)) {
+        return tNear;
+    } 
+    else {
+        return -1.0;
+    }
+}
+
+bool isInBoundingBox(AABB aabb, vec3 point) {
+    if(aabb.bMin.x < point.x && point.x < aabb.bMax.x && point.y < aabb.bMax.y && point.y > aabb.bMin.y && aabb.bMax.z > point.z && aabb.bMin.z < point.z) return true;
+    else return false;
+}
+
+void gridIntersection(AABB gridBox, int numOfVoxel, vec3 origin, vec3 direction) {
+    float voxelWidth = (gridBox.bMax.x - gridBox.bMin.x) / (float)numOfVoxel;
+    ivec3 startVoxel;
+
+    if(isInBoundingBox(gridBox, origin)) {
+        startVoxel = floor((origin - gridBox.bMin) / voxelWidth);
+    }
+    else {
+
+    }
+}
+
+
+
+void main() {
+    vec3 origin = gl_WorldRayOriginEXT;
+    vec3 direction = gl_WorldRayDirectionEXT;
+
+    float closest = 10000;
+
+    for(int x = 0; x < 15; x++) {
+        for(int y = 0; y < 15; y++) {
+            for(int z = 0; z < 15; z++) {
+                if(voxels.v[15 * 15 * x + 15 * y + z] == 0) continue; 
+                
+                vec3 bMin = vec3(x,  y, z) + vec3(1);
+                vec3 bMax = vec3(x, y, z) + vec3(2);
+
+                AABB aabb = {bMin, bMax};
+
+                float i = boundingBoxIntersection(aabb, origin, direction);
+                if(i > 0 && i < closest) closest = i; 
+            }
+        }
+    }
+
+    if(closest != 10000) reportIntersectionEXT(closest, 0);
+}
